@@ -1,0 +1,88 @@
+## Terraform Plan Summary
+{{- if .HasChanges}}
+{{- range $planIndex, $plan := .Plans}}
+{{- $totalCreated := len $plan.Data.CreatedResources}}
+{{- $totalUpdated := len $plan.Data.UpdatedResources}}
+{{- $totalRecreated := len $plan.Data.RecreatedResources}}
+{{- $totalDeleted := len $plan.Data.DeletedResources}}
+### Plan: {{$plan.Identifier.Name}}
+
+```
+Resource Changes: {{$totalCreated}} to add, {{$totalUpdated}} to change, {{$totalRecreated}} to recreate, {{$totalDeleted}} to destroy
+```
+
+{{- if or $plan.Data.RecreatedResources $plan.Data.DeletedResources}}
+> [!warning]⚠️ WARNING
+> This plan contains destructive changes (recreations and/or deletions) that may cause data loss.\
+> Please review carefully before applying.
+
+{{- end}}
+
+<details>
+<summary>
+
+**Click to expand detailed resource changes**
+
+</summary>
+{{if $plan.Data.CreatedResources}}
+#### ✅ Add ({{$totalCreated}})
+{{range $plan.Data.CreatedResources}}
+{{template "resourceDiff" .}}
+{{- end}}
+{{- end}}
+{{- if and $plan.Data.CreatedResources (or $plan.Data.UpdatedResources $plan.Data.RecreatedResources)}}{{- end}}
+{{if $plan.Data.UpdatedResources}}
+#### 🔄 Change ({{$totalUpdated}})
+{{range $plan.Data.UpdatedResources}}
+{{template "resourceDiff" .}}
+{{- end}}
+{{- end}}
+{{- if and $plan.Data.UpdatedResources $plan.Data.RecreatedResources}}
+{{- end}}
+{{if $plan.Data.RecreatedResources}}
+#### 🔄 Recreate ({{$totalRecreated}})
+{{range $plan.Data.RecreatedResources}}
+{{template "resourceDiff" .}}
+{{- end}}
+{{- end}}
+{{- if and $plan.Data.RecreatedResources $plan.Data.DeletedResources}}
+
+{{- end}}
+{{if $plan.Data.DeletedResources}}
+#### ❌ Destroy ({{$totalDeleted}})
+{{range $plan.Data.DeletedResources}}
+{{template "resourceDiff" .}}
+{{end}}
+{{end}}
+{{- if not $plan.Data.HasChanges}}
+No changes detected in this plan.
+{{- end}}
+
+</details>
+
+{{- if lt $planIndex (sub (len $.Plans) 1)}}
+
+---
+
+{{- end}}
+{{- end}}
+{{else}}
+No changes detected across all plans.
+{{- end}}
+{{define "resourceDiff"}}
+{{- if .Diffs}}
+<details>
+<summary>
+
+`{{.Address}}`
+
+</summary>
+
+```diff
+{{range .FormattedDiffs}}{{.}}
+{{end}}
+```
+
+</details>
+{{- end}}
+{{- end}}

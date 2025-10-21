@@ -1,0 +1,156 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.5.7",
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_instance.database",
+          "mode": "managed",
+          "type": "aws_instance",
+          "name": "database",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": {
+            "instance_type": "t3.large",
+            "ami": "ami-98765432",
+            "subnet_id": "subnet-12345678"
+          }
+        },
+        {
+          "address": "aws_vpc.main",
+          "mode": "managed",
+          "type": "aws_vpc",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "cidr_block": "10.0.0.0/16",
+            "enable_dns_support": true,
+            "enable_dns_hostnames": true
+          }
+        },
+        {
+          "address": "aws_subnet.private",
+          "mode": "managed",
+          "type": "aws_subnet",
+          "name": "private",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": {
+            "vpc_id": "vpc-12345678",
+            "cidr_block": "10.0.1.0/24",
+            "availability_zone": "us-east-1a"
+          }
+        },
+        {
+          "address": "aws_rds_cluster.main",
+          "mode": "managed",
+          "type": "aws_rds_cluster",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "engine": "mysql",
+            "engine_version": "8.0",
+            "master_username": "admin",
+            "database_name": "app_db"
+          }
+        }
+      ]
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "aws_instance.database",
+      "mode": "managed", 
+      "type": "aws_instance",
+      "name": "database",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "instance_type": "t3.large",
+          "ami": "ami-98765432",
+          "subnet_id": "subnet-12345678"
+        },
+        "after_unknown": {},
+        "before_sensitive": false,
+        "after_sensitive": false
+      }
+    },
+    {
+      "address": "aws_vpc.main",
+      "mode": "managed", 
+      "type": "aws_vpc",
+      "name": "main",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "cidr_block": "10.0.0.0/16",
+          "enable_dns_support": true,
+          "enable_dns_hostnames": true
+        },
+        "after_unknown": {},
+        "before_sensitive": false,
+        "after_sensitive": false
+      }
+    },
+    {
+      "address": "aws_subnet.private",
+      "mode": "managed", 
+      "type": "aws_subnet",
+      "name": "private",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "vpc_id": "vpc-12345678",
+          "cidr_block": "10.0.1.0/24",
+          "availability_zone": "us-east-1a"
+        },
+        "after_unknown": {},
+        "before_sensitive": false,
+        "after_sensitive": false
+      }
+    },
+    {
+      "address": "aws_rds_cluster.main",
+      "mode": "managed", 
+      "type": "aws_rds_cluster",
+      "name": "main",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["delete", "create"],
+        "before": {
+          "engine": "mysql",
+          "engine_version": "5.7",
+          "master_username": "root",
+          "database_name": "old_db",
+          "storage_encrypted": false
+        },
+        "after": {
+          "engine": "mysql",
+          "engine_version": "8.0",
+          "master_username": "admin",
+          "database_name": "app_db",
+          "storage_encrypted": true
+        },
+        "after_unknown": {},
+        "before_sensitive": false,
+        "after_sensitive": false
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "registry.terraform.io/hashicorp/aws": {
+        "name": "aws"
+      }
+    }
+  }
+}
