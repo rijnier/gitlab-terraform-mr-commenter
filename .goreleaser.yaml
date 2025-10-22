@@ -35,6 +35,10 @@ archives:
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
 
+dockers_v2:
+  - images:
+      - ghcr.io/rijnier/gitlab-terraform-mr-commenter
+
 changelog:
   sort: asc
   filters:
