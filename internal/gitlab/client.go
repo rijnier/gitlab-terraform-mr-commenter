@@ -88,10 +88,10 @@ func (c *Client) FindExistingPlanNote() (*MRNote, error) {
 		if !note.Internal {
 			continue
 		}
-		
-		hasPlanSummary := len(note.Body) >= len(constants.TerraformPlansSummary) && 
+
+		hasPlanSummary := len(note.Body) >= len(constants.TerraformPlansSummary) &&
 			note.Body[:len(constants.TerraformPlansSummary)] == constants.TerraformPlansSummary
-		
+
 		if hasPlanSummary {
 			return &MRNote{
 				ID:     fmt.Sprintf("%d", note.ID),
@@ -117,8 +117,6 @@ func (c *Client) UpdateNote(noteID, body string) error {
 
 	return nil
 }
-
-
 
 func (c *Client) ShouldUpdateNote(existingBody, newBody string) bool {
 	normalizeContent := func(s string) string {
