@@ -38,6 +38,15 @@ archives:
 dockers_v2:
   - images:
       - ghcr.io/rijnier/gitlab-terraform-mr-commenter
+    tags:
+      - "v{{ .Version }}"
+      - "latest"
+  - dockerfile: Dockerfile.debug
+    images:
+      - ghcr.io/rijnier/gitlab-terraform-mr-commenter
+    tags:
+      - "debug-v{{ .Version }}"
+      - "debug"
 
 changelog:
   sort: asc
