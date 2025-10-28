@@ -13,7 +13,6 @@ import (
 	"gitlab-terraform-mr-commenter/internal/constants"
 )
 
-// ActionType represents the type of resource change in terraform
 type ActionType string
 
 const (
@@ -23,7 +22,6 @@ const (
 	ActionDelete   ActionType = "delete"
 )
 
-// DiffAction represents the type of attribute diff
 type DiffAction string
 
 const (
@@ -307,10 +305,10 @@ func buildPlanData(changes *ChangeCategories) *PlanData {
 }
 
 func buildResourceData(resources []*tfjson.ResourceChange, changeType ActionType) []*ResourceData {
-	data := make([]*ResourceData, len(resources))
+	var validResources []*ResourceData
 	diffGen := DiffGenerator{}
 
-	for index, resource := range resources {
+	for _, resource := range resources {
 		beforeMap, _ := resource.Change.Before.(map[string]interface{})
 		afterMap, _ := resource.Change.After.(map[string]interface{})
 		if beforeMap == nil {
@@ -319,14 +317,19 @@ func buildResourceData(resources []*tfjson.ResourceChange, changeType ActionType
 		if afterMap == nil {
 			afterMap = make(map[string]interface{})
 		}
-		data[index] = &ResourceData{
-			Address:    resource.Address,
-			ChangeType: changeType,
-			Diffs:      diffGen.GenerateDiff(resource, beforeMap, afterMap),
+
+		diffs := diffGen.GenerateDiff(resource, beforeMap, afterMap)
+
+		if len(diffs) > 0 {
+			validResources = append(validResources, &ResourceData{
+				Address:    resource.Address,
+				ChangeType: changeType,
+				Diffs:      diffs,
+			})
 		}
 	}
 
-	return data
+	return validResources
 }
 
 func loadAndValidatePlan(filename string) (*tfjson.Plan, error) {
