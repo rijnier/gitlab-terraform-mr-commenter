@@ -51,16 +51,34 @@ func (dg *DiffGenerator) createDiffLine(key string, before, after interface{}, d
 }
 
 func (dg *DiffGenerator) isValueSensitive(resource *tfjson.ResourceChange, fieldName string) bool {
-	checkSensitive := func(sensitive interface{}) bool {
+	for _, sensitive := range []interface{}{resource.Change.AfterSensitive, resource.Change.BeforeSensitive} {
 		if sensitiveMap, ok := sensitive.(map[string]interface{}); ok {
-			if isSensitive, exists := sensitiveMap[fieldName]; exists && isSensitive.(bool) {
+			if isSensitive, exists := sensitiveMap[fieldName]; exists {
+				return dg.isAnySensitive(isSensitive)
+			}
+		}
+	}
+	return false
+}
+
+func (dg *DiffGenerator) isAnySensitive(value interface{}) bool {
+	switch v := value.(type) {
+	case bool:
+		return v
+	case []interface{}:
+		for _, item := range v {
+			if dg.isAnySensitive(item) {
 				return true
 			}
 		}
-		return false
+	case map[string]interface{}:
+		for _, item := range v {
+			if dg.isAnySensitive(item) {
+				return true
+			}
+		}
 	}
-
-	return checkSensitive(resource.Change.AfterSensitive) || checkSensitive(resource.Change.BeforeSensitive)
+	return false
 }
 
 func (dg *DiffGenerator) GenerateDiff(resource *tfjson.ResourceChange, beforeMap, afterMap map[string]interface{}) []DiffLine {
