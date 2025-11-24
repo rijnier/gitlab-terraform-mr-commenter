@@ -5,7 +5,7 @@ go 1.25
 require (
 	github.com/hashicorp/terraform-json v0.27.2
 	github.com/kelseyhightower/envconfig v1.4.0
-	gitlab.com/gitlab-org/api/client-go v0.157.0
+	gitlab.com/gitlab-org/api/client-go v0.160.1
 )
 
 require (
