@@ -69,20 +69,12 @@ No changes detected in this plan.
 {{else}}
 No changes detected across all plans.
 {{- end}}
-{{define "resourceDiff"}}
-{{- if .Diffs}}
-<details>
-<summary>
-
-`{{.Address}}`
-
-</summary>
-
-```diff
-{{range .FormattedDiffs}}{{.}}
-{{end}}
-```
-
-</details>
-{{- end}}
-{{- end}}
+ {{- define "resourceDiff"}}
+ {{- if .Diffs}}
+#### `{{.Address}}`
+ ```diff
+ {{range .FormattedDiffs}}{{.}}
+ {{end}}
+ ```
+ {{- end}}
+ {{- end}}
