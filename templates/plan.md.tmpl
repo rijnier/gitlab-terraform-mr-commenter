@@ -5,15 +5,16 @@
 {{- $totalUpdated := len $plan.Data.UpdatedResources}}
 {{- $totalRecreated := len $plan.Data.RecreatedResources}}
 {{- $totalDeleted := len $plan.Data.DeletedResources}}
-### Plan: {{$plan.Identifier.Name}}
+### Plan: {{$plan.Name}}
 
 ```
 Resource Changes: {{$totalCreated}} to add, {{$totalUpdated}} to change, {{$totalRecreated}} to recreate, {{$totalDeleted}} to destroy
 ```
 
 {{- if or $plan.Data.RecreatedResources $plan.Data.DeletedResources}}
+
 > [!warning]⚠️ WARNING
-> This plan contains destructive changes (recreations and/or deletions) that may cause data loss.\
+> This plan contains **destructive changes** (recreations and/or deletions) that may cause data loss.\
 > Please review carefully before applying.
 
 {{- end}}
@@ -30,33 +31,27 @@ Resource Changes: {{$totalCreated}} to add, {{$totalUpdated}} to change, {{$tota
 {{template "resourceDiff" .}}
 {{- end}}
 {{- end}}
-{{- if and $plan.Data.CreatedResources (or $plan.Data.UpdatedResources $plan.Data.RecreatedResources)}}{{- end}}
+
 {{if $plan.Data.UpdatedResources}}
 #### 🔄 Change ({{$totalUpdated}})
 {{range $plan.Data.UpdatedResources}}
 {{template "resourceDiff" .}}
 {{- end}}
 {{- end}}
-{{- if and $plan.Data.UpdatedResources $plan.Data.RecreatedResources}}
-{{- end}}
+
 {{if $plan.Data.RecreatedResources}}
 #### 🔄 Recreate ({{$totalRecreated}})
 {{range $plan.Data.RecreatedResources}}
 {{template "resourceDiff" .}}
 {{- end}}
 {{- end}}
-{{- if and $plan.Data.RecreatedResources $plan.Data.DeletedResources}}
 
-{{- end}}
 {{if $plan.Data.DeletedResources}}
 #### ❌ Destroy ({{$totalDeleted}})
 {{range $plan.Data.DeletedResources}}
 {{template "resourceDiff" .}}
 {{end}}
 {{end}}
-{{- if not $plan.Data.HasChanges}}
-No changes detected in this plan.
-{{- end}}
 
 </details>
 
@@ -66,15 +61,12 @@ No changes detected in this plan.
 
 {{- end}}
 {{- end}}
-{{else}}
-No changes detected across all plans.
 {{- end}}
- {{- define "resourceDiff"}}
- {{- if .Diffs}}
+{{- define "resourceDiff"}}
+{{- if .Diff}}
 #### `{{.Address}}`
- ```diff
- {{range .FormattedDiffs}}{{.}}
- {{end}}
- ```
- {{- end}}
- {{- end}}
+```diff
+{{.Diff}}
+```
+{{- end}}
+{{- end}}

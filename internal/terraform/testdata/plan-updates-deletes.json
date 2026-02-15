@@ -53,6 +53,7 @@
         "before": {
           "instance_type": "t3.micro",
           "ami": "ami-12345678",
+          "database_password": "oldpass",
           "tags": {
             "Environment": "staging"
           }
@@ -60,13 +61,18 @@
         "after": {
           "instance_type": "t3.medium",
           "ami": "ami-12345678",
+          "database_password": "newpass",
           "tags": {
             "Environment": "production"
           }
         },
         "after_unknown": {},
-        "before_sensitive": false,
-        "after_sensitive": false
+        "before_sensitive": {
+          "database_password": true
+        },
+        "after_sensitive": {
+          "database_password": true
+        }
       }
     },
     {

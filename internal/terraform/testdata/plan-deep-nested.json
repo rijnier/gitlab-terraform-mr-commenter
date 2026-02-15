@@ -1,0 +1,221 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.5.7",
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_eks_cluster.main",
+          "mode": "managed",
+          "type": "aws_eks_cluster",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": {
+            "name": "main-cluster",
+            "role_arn": "arn:aws:iam::123456789012:role/eks-role",
+            "vpc_config": {
+              "subnet_ids": ["subnet-12345678", "subnet-87654321"],
+              "security_group_ids": ["sg-12345678"],
+              "endpoint_public_access": true,
+              "endpoint_private_access": false
+            },
+            "kubernetes_network_config": {
+              "ip_family": "ipv4",
+              "service_ipv4_cidr": "10.100.0.0/16"
+            },
+            "logging": {
+              "cluster_logging": [
+                {
+                  "types": ["api", "audit", "authenticator"],
+                  "enabled": true
+                }
+              ]
+            },
+            "addons_config": {
+              "addon_configs": {
+                "coredns": {
+                  "dns_server_ip": "172.20.0.10",
+                  "addon_version": "v1.10.1-eksbuild.1"
+                }
+              }
+            }
+          }
+        },
+        {
+          "address": "aws_lambda_function.app",
+          "mode": "managed",
+          "type": "aws_lambda_function",
+          "name": "app",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "values": {
+            "function_name": "app-function",
+            "runtime": "python3.11",
+            "role": "arn:aws:iam::123456789012:role/lambda-role",
+            "handler": "index.handler",
+            "environment": {
+              "variables": {
+                "ENV": "production",
+                "DB_HOST": "db.example.com",
+                "CACHE_TTL": "3600",
+                "MAX_RETRIES": "3"
+              }
+            },
+            "vpc_config": {
+              "subnet_ids": ["subnet-11111111", "subnet-22222222"],
+              "security_group_ids": ["sg-98765432"],
+              "vpc_id": "vpc-12345678"
+            },
+            "dead_letter_config": {
+              "target_arn": "arn:aws:sqs:us-east-1:123456789012:dlq"
+            },
+            "layers": [
+              "arn:aws:lambda:us-east-1:123456789012:layer:python-lib:1"
+            ],
+            "file_system_config": {
+              "arn": "arn:aws:elasticfilesystem:us-east-1:123456789012:access-point/fsap-123456",
+              "local_mount_path": "/mnt/data"
+            },
+            "tracing_config": {
+              "mode": "Active"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "aws_eks_cluster.main",
+      "mode": "managed",
+      "type": "aws_eks_cluster",
+      "name": "main",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "kubernetes_network_config": {
+            "ip_family": "ipv4",
+            "service_ipv4_cidr": "10.100.0.0/16"
+          },
+          "vpc_config": {
+            "subnet_ids": ["subnet-12345678", "subnet-87654321"],
+            "security_group_ids": ["sg-12345678"],
+            "endpoint_public_access": false,
+            "endpoint_private_access": false
+          },
+          "logging": {
+            "cluster_logging": [
+              {
+                "types": ["api"],
+                "enabled": false
+              }
+            ]
+          },
+          "addons_config": {}
+        },
+        "after": {
+          "kubernetes_network_config": {
+            "ip_family": "ipv4",
+            "service_ipv4_cidr": "10.100.0.0/16"
+          },
+          "vpc_config": {
+            "subnet_ids": ["subnet-12345678", "subnet-87654321"],
+            "security_group_ids": ["sg-12345678"],
+            "endpoint_public_access": true,
+            "endpoint_private_access": false
+          },
+          "logging": {
+            "cluster_logging": [
+              {
+                "types": ["api", "audit", "authenticator"],
+                "enabled": true
+              }
+            ]
+          },
+          "addons_config": {
+            "addon_configs": {
+              "coredns": {
+                "dns_server_ip": "172.20.0.10",
+                "addon_version": "v1.10.1-eksbuild.1"
+              }
+            }
+          }
+        },
+        "after_unknown": {},
+        "before_sensitive": false,
+        "after_sensitive": false
+      }
+    },
+    {
+      "address": "aws_lambda_function.app",
+      "mode": "managed",
+      "type": "aws_lambda_function",
+      "name": "app",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "runtime": "python3.9",
+          "environment": {
+            "variables": {
+              "ENV": "staging",
+              "DB_HOST": "localhost",
+              "CACHE_TTL": "1800"
+            }
+          },
+          "vpc_config": {
+            "subnet_ids": ["subnet-11111111"],
+            "security_group_ids": ["sg-11111111"],
+            "vpc_id": "vpc-12345678"
+          },
+          "dead_letter_config": {},
+          "layers": [],
+          "tracing_config": {
+            "mode": "PassThrough"
+          }
+        },
+        "after": {
+          "runtime": "python3.11",
+          "environment": {
+            "variables": {
+              "ENV": "production",
+              "DB_HOST": "db.example.com",
+              "CACHE_TTL": "3600",
+              "MAX_RETRIES": "3"
+            }
+          },
+          "vpc_config": {
+            "subnet_ids": ["subnet-11111111", "subnet-22222222"],
+            "security_group_ids": ["sg-98765432"],
+            "vpc_id": "vpc-12345678"
+          },
+          "dead_letter_config": {
+            "target_arn": "arn:aws:sqs:us-east-1:123456789012:dlq"
+          },
+          "layers": [
+            "arn:aws:lambda:us-east-1:123456789012:layer:python-lib:1"
+          ],
+          "file_system_config": {
+            "arn": "arn:aws:elasticfilesystem:us-east-1:123456789012:access-point/fsap-123456",
+            "local_mount_path": "/mnt/data"
+          },
+          "tracing_config": {
+            "mode": "Active"
+          }
+        },
+        "after_unknown": {},
+        "before_sensitive": false,
+        "after_sensitive": false
+      }
+    }
+  ],
+  "configuration": {
+    "provider_config": {
+      "registry.terraform.io/hashicorp/aws": {
+        "name": "aws"
+      }
+    }
+  }
+}

@@ -3,28 +3,24 @@ package output
 import (
 	"fmt"
 	"os"
-
-	"gitlab-terraform-mr-commenter/internal/constants"
 )
 
-func Write(content, filename string) error {
-	if content == "" {
-		return fmt.Errorf("content cannot be empty")
-	}
+const stdoutFileIndicator = "-"
 
-	if filename == constants.StdoutFileIndicator {
+func Write(content, filename string) error {
+	if filename == stdoutFileIndicator {
 		_, err := fmt.Print(content)
 		return err
 	}
 
 	file, err := os.Create(filename)
 	if err != nil {
-		return fmt.Errorf(constants.ErrOutputFileCreate, filename, err)
+		return fmt.Errorf("failed to create output file %s: %w", filename, err)
 	}
 	defer file.Close()
 
 	if _, err = file.WriteString(content); err != nil {
-		return fmt.Errorf(constants.ErrOutputFileWrite, filename, err)
+		return fmt.Errorf("failed to write to output file %s: %w", filename, err)
 	}
 
 	return nil
@@ -32,8 +28,8 @@ func Write(content, filename string) error {
 
 func PrintSuccess(filename string) {
 	destination := "stdout"
-	if filename != constants.StdoutFileIndicator {
+	if filename != stdoutFileIndicator {
 		destination = filename
 	}
-	fmt.Fprintf(os.Stderr, constants.SuccessMessage+"\n", destination)
+	fmt.Fprintf(os.Stderr, "Markdown output written to %s\n", destination)
 }

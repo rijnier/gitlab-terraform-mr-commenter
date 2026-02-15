@@ -1,87 +1,79 @@
 package gitlab
 
 import (
+	"context"
 	"fmt"
-	"strconv"
+	"log/slog"
+	"net/http"
 	"strings"
+	"time"
 
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 
 	"gitlab-terraform-mr-commenter/internal/config"
 	"gitlab-terraform-mr-commenter/internal/constants"
+	"gitlab-terraform-mr-commenter/internal/types"
 )
 
-type MRNote struct {
-	ID     string
-	Body   string
-	Exists bool
-}
-
 type Client struct {
-	client *gitlab.Client
-	config *config.Config
-	mrID   int
+	client    *gitlab.Client
+	projectID string
+	mrID      int
 }
 
 func New(cfg *config.Config) (*Client, error) {
-	client, err := gitlab.NewClient(cfg.GitlabToken, gitlab.WithBaseURL(cfg.GitlabURL))
+	httpClient := &http.Client{Timeout: 10 * time.Second}
+	client, err := gitlab.NewClient(cfg.GitlabToken, gitlab.WithBaseURL(cfg.GitlabURL), gitlab.WithHTTPClient(httpClient))
 	if err != nil {
 		return nil, fmt.Errorf("error creating GitLab client: %w", err)
 	}
 
-	mrID, err := strconv.Atoi(cfg.MergeRequestID)
-	if err != nil {
-		return nil, fmt.Errorf("error converting MergeRequestID: %w", err)
-	}
-
 	return &Client{
-		client: client,
-		config: cfg,
-		mrID:   mrID,
+		client:    client,
+		projectID: cfg.ProjectID,
+		mrID:      cfg.MergeRequestID,
 	}, nil
 }
 
-func (c *Client) ValidateAccess() error {
-	user, _, err := c.client.Users.CurrentUser()
+func (c *Client) ValidateAccess(ctx context.Context) error {
+	user, _, err := c.client.Users.CurrentUser(gitlab.WithContext(ctx))
 	if err != nil {
-		return c.wrapGitLabError(constants.ErrGitlabAuth, err)
+		return fmt.Errorf("failed to authenticate with GitLab: %w", err)
 	}
 
-	project, _, err := c.client.Projects.GetProject(c.config.ProjectID, nil)
+	project, _, err := c.client.Projects.GetProject(c.projectID, nil, gitlab.WithContext(ctx))
 	if err != nil {
-		return c.wrapGitLabError(constants.ErrGitlabProject, c.config.ProjectID, err)
+		return fmt.Errorf("failed to access project %s: %w", c.projectID, err)
 	}
 
-	mr, _, err := c.client.MergeRequests.GetMergeRequest(c.config.ProjectID, c.mrID, nil)
+	mr, _, err := c.client.MergeRequests.GetMergeRequest(c.projectID, c.mrID, nil, gitlab.WithContext(ctx))
 	if err != nil {
-		return c.wrapGitLabError(constants.ErrGitlabMR, c.config.MergeRequestID, err)
+		return fmt.Errorf("failed to access merge request %d: %w", c.mrID, err)
 	}
 
-	fmt.Printf("Authenticated as user: %s\n", user.Username)
-	fmt.Printf("Project: %s\n", project.NameWithNamespace)
-	fmt.Printf("Merge Request: %s\n", mr.Title)
+	slog.Info("authenticated", "user", user.Username, "project", project.NameWithNamespace, "merge_request", mr.Title)
 
 	return nil
 }
 
-func (c *Client) CreateNote(title, body string) error {
+func (c *Client) CreateNote(ctx context.Context, body string) error {
 	note := &gitlab.CreateMergeRequestNoteOptions{
 		Body:     &body,
 		Internal: gitlab.Ptr(true),
 	}
 
-	_, _, err := c.client.Notes.CreateMergeRequestNote(c.config.ProjectID, c.mrID, note)
+	_, _, err := c.client.Notes.CreateMergeRequestNote(c.projectID, c.mrID, note, gitlab.WithContext(ctx))
 	if err != nil {
-		return c.wrapGitLabError(constants.ErrGitlabCreateNote, err)
+		return fmt.Errorf("failed to create MR note: %w", err)
 	}
 
 	return nil
 }
 
-func (c *Client) FindExistingPlanNote() (*MRNote, error) {
-	notes, _, err := c.client.Notes.ListMergeRequestNotes(c.config.ProjectID, c.mrID, nil)
+func (c *Client) FindExistingPlanNote(ctx context.Context) (*types.MRNote, error) {
+	notes, _, err := c.client.Notes.ListMergeRequestNotes(c.projectID, c.mrID, nil, gitlab.WithContext(ctx))
 	if err != nil {
-		return nil, c.wrapGitLabError(constants.ErrGitlabListNotes, err)
+		return nil, fmt.Errorf("failed to list MR notes: %w", err)
 	}
 
 	for _, note := range notes {
@@ -89,30 +81,26 @@ func (c *Client) FindExistingPlanNote() (*MRNote, error) {
 			continue
 		}
 
-		hasPlanSummary := len(note.Body) >= len(constants.TerraformPlansSummary) &&
-			note.Body[:len(constants.TerraformPlansSummary)] == constants.TerraformPlansSummary
-
-		if hasPlanSummary {
-			return &MRNote{
-				ID:     fmt.Sprintf("%d", note.ID),
+		if strings.Contains(note.Body, constants.NoteMarker) {
+			return &types.MRNote{
+				ID:     note.ID,
 				Body:   note.Body,
 				Exists: true,
 			}, nil
 		}
 	}
 
-	return &MRNote{Exists: false}, nil
+	return &types.MRNote{Exists: false}, nil
 }
 
-func (c *Client) UpdateNote(noteID, body string) error {
+func (c *Client) UpdateNote(ctx context.Context, noteID int, body string) error {
 	note := &gitlab.UpdateMergeRequestNoteOptions{
 		Body: &body,
 	}
 
-	noteIDInt, _ := strconv.Atoi(noteID)
-	_, _, err := c.client.Notes.UpdateMergeRequestNote(c.config.ProjectID, c.mrID, noteIDInt, note)
+	_, _, err := c.client.Notes.UpdateMergeRequestNote(c.projectID, c.mrID, noteID, note, gitlab.WithContext(ctx))
 	if err != nil {
-		return c.wrapGitLabError(constants.ErrGitlabUpdateNote, noteID, err)
+		return fmt.Errorf("failed to update MR note %d: %w", noteID, err)
 	}
 
 	return nil
@@ -123,8 +111,4 @@ func (c *Client) ShouldUpdateNote(existingBody, newBody string) bool {
 		return strings.Join(strings.Fields(s), " ")
 	}
 	return !strings.EqualFold(normalizeContent(existingBody), normalizeContent(newBody))
-}
-
-func (c *Client) wrapGitLabError(template string, args ...interface{}) error {
-	return fmt.Errorf(template, args...)
 }

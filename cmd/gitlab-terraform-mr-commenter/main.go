@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
+	"os/signal"
+	"strings"
+	"syscall"
 
 	"gitlab-terraform-mr-commenter/internal/config"
 	"gitlab-terraform-mr-commenter/internal/constants"
@@ -12,29 +16,27 @@ import (
 	"gitlab-terraform-mr-commenter/internal/gitlab"
 	"gitlab-terraform-mr-commenter/internal/output"
 	"gitlab-terraform-mr-commenter/internal/terraform"
+	"gitlab-terraform-mr-commenter/internal/types"
 )
 
-func updateExistingNote(gitlabClient *gitlab.Client, noteID, commentBody string) error {
-	if err := gitlabClient.UpdateNote(noteID, commentBody); err != nil {
-		return fmt.Errorf("error updating internal note: %w", err)
-	}
-	fmt.Printf(constants.LogUpdatedExistingNote, noteID)
-	return nil
+const noChangesMessage = "No changes detected."
+
+type GitLabCommenter interface {
+	ValidateAccess(ctx context.Context) error
+	FindExistingPlanNote(ctx context.Context) (*types.MRNote, error)
+	ShouldUpdateNote(existingBody, newBody string) bool
+	UpdateNote(ctx context.Context, noteID int, body string) error
+	CreateNote(ctx context.Context, body string) error
 }
 
-func createNewNote(gitlabClient *gitlab.Client, commentBody string) error {
-	if err := gitlabClient.CreateNote("", commentBody); err != nil {
-		return fmt.Errorf("error creating internal note: %w", err)
-	}
-	fmt.Printf(constants.LogCreatedNewNote)
-	return nil
+func withMarker(body string) string {
+	return constants.NoteMarker + "\n" + body
 }
 
 func main() {
 	var outputFile string
 
 	flag.StringVar(&outputFile, "output", "", "Write output to file (use '-' for stdout)")
-	flag.StringVar(&outputFile, "o", "", "Write output to file (use '-' for stdout) (shorthand)")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [options] <terraform-plan.json> [<terraform-plan2.json> ...]\n\n", os.Args[0])
@@ -56,12 +58,16 @@ func main() {
 	}
 	planFiles := args
 
-	if err := run(planFiles, outputFile); err != nil {
-		log.Fatalf("Error: %v", err)
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	if err := run(ctx, planFiles, outputFile); err != nil {
+		slog.Error("fatal error", "error", err)
+		os.Exit(1)
 	}
 }
 
-func run(planFiles []string, outputFile string) error {
+func run(ctx context.Context, planFiles []string, outputFile string) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("error loading configuration: %w", err)
@@ -72,13 +78,11 @@ func run(planFiles []string, outputFile string) error {
 		return fmt.Errorf("error creating GitLab client: %w", err)
 	}
 
-	terraformProcessor := &terraform.Processor{}
-
-	return runWithClients(planFiles, outputFile, gitlabClient, terraformProcessor)
+	return runWithClients(ctx, planFiles, outputFile, gitlabClient)
 }
 
-func runWithClients(planFiles []string, outputFile string, gitlabClient *gitlab.Client, terraformProcessor *terraform.Processor) error {
-	commentBody, err := loadAndProcessPlans(planFiles, terraformProcessor)
+func runWithClients(ctx context.Context, planFiles []string, outputFile string, gitlabClient GitLabCommenter) error {
+	commentBody, err := loadAndProcessPlans(planFiles)
 	if err != nil {
 		return err
 	}
@@ -91,11 +95,11 @@ func runWithClients(planFiles []string, outputFile string, gitlabClient *gitlab.
 		return nil
 	}
 
-	return handleGitLabComment(commentBody, gitlabClient)
+	return handleGitLabComment(ctx, commentBody, gitlabClient)
 }
 
-func loadAndProcessPlans(planFiles []string, terraformProcessor *terraform.Processor) (string, error) {
-	multiPlanData, err := terraformProcessor.ProcessMultiplePlans(planFiles)
+func loadAndProcessPlans(planFiles []string) (string, error) {
+	multiPlanData, err := terraform.ProcessMultiplePlans(planFiles)
 	if err != nil {
 		return "", fmt.Errorf("error processing terraform plans: %w", err)
 	}
@@ -107,34 +111,44 @@ func loadAndProcessPlans(planFiles []string, terraformProcessor *terraform.Proce
 			return "", fmt.Errorf("error formatting plans: %w", err)
 		}
 	} else {
-		commentBody = constants.NoChangesMessage
+		commentBody = noChangesMessage
 	}
 
 	return commentBody, nil
 }
 
-func handleGitLabComment(commentBody string, gitlabClient *gitlab.Client) error {
-	if err := gitlabClient.ValidateAccess(); err != nil {
+func handleGitLabComment(ctx context.Context, commentBody string, gitlabClient GitLabCommenter) error {
+	if err := gitlabClient.ValidateAccess(ctx); err != nil {
 		return fmt.Errorf("error validating GitLab access: %w", err)
 	}
 
-	fmt.Printf(constants.LogCommentBodyLength, len(commentBody))
-	existingNote, err := gitlabClient.FindExistingPlanNote()
+	slog.Info("comment body ready", "length", len(commentBody))
+	existingNote, err := gitlabClient.FindExistingPlanNote(ctx)
 	if err != nil {
 		return fmt.Errorf("error finding existing plan note: %w", err)
 	}
-	return updateOrCreateNote(gitlabClient, existingNote, commentBody)
+	return updateOrCreateNote(ctx, gitlabClient, existingNote, commentBody)
 }
 
-func updateOrCreateNote(gitlabClient *gitlab.Client, existingNote *gitlab.MRNote, commentBody string) error {
+func updateOrCreateNote(ctx context.Context, gitlabClient GitLabCommenter, existingNote *types.MRNote, commentBody string) error {
+	markedBody := withMarker(commentBody)
 	if existingNote.Exists {
-		fmt.Printf(constants.LogFoundExistingNote, existingNote.ID)
-		if !gitlabClient.ShouldUpdateNote(existingNote.Body, commentBody) {
-			fmt.Printf(constants.LogNoteUpToDate)
+		slog.Info("found existing note", "note_id", existingNote.ID)
+		strippedExisting := strings.TrimPrefix(existingNote.Body, constants.NoteMarker+"\n")
+		if !gitlabClient.ShouldUpdateNote(strippedExisting, commentBody) {
+			slog.Info("note up to date, skipping update")
 			return nil
 		}
-		return updateExistingNote(gitlabClient, existingNote.ID, commentBody)
+		if err := gitlabClient.UpdateNote(ctx, existingNote.ID, markedBody); err != nil {
+			return fmt.Errorf("error updating note: %w", err)
+		}
+		slog.Info("updated existing note", "note_id", existingNote.ID)
+		return nil
 	}
-	fmt.Printf(constants.LogCreatingNewNote)
-	return createNewNote(gitlabClient, commentBody)
+	slog.Info("creating new note")
+	if err := gitlabClient.CreateNote(ctx, markedBody); err != nil {
+		return fmt.Errorf("error creating note: %w", err)
+	}
+	slog.Info("created new note")
+	return nil
 }
