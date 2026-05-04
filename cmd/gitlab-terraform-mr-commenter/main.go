@@ -25,7 +25,7 @@ type GitLabCommenter interface {
 	ValidateAccess(ctx context.Context) error
 	FindExistingPlanNote(ctx context.Context) (*types.MRNote, error)
 	ShouldUpdateNote(existingBody, newBody string) bool
-	UpdateNote(ctx context.Context, noteID int, body string) error
+	UpdateNote(ctx context.Context, noteID int64, body string) error
 	CreateNote(ctx context.Context, body string) error
 }
 

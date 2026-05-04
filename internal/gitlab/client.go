@@ -18,7 +18,7 @@ import (
 type Client struct {
 	client    *gitlab.Client
 	projectID string
-	mrID      int
+	mrID      int64
 }
 
 func New(cfg *config.Config) (*Client, error) {
@@ -93,7 +93,7 @@ func (c *Client) FindExistingPlanNote(ctx context.Context) (*types.MRNote, error
 	return &types.MRNote{Exists: false}, nil
 }
 
-func (c *Client) UpdateNote(ctx context.Context, noteID int, body string) error {
+func (c *Client) UpdateNote(ctx context.Context, noteID int64, body string) error {
 	note := &gitlab.UpdateMergeRequestNoteOptions{
 		Body: &body,
 	}
