@@ -1,13 +1,14 @@
 package output
 
 import (
+	"errors"
 	"fmt"
 	"os"
 )
 
 const stdoutFileIndicator = "-"
 
-func Write(content, filename string) error {
+func Write(content, filename string) (err error) {
 	if filename == stdoutFileIndicator {
 		_, err := fmt.Print(content)
 		return err
@@ -17,7 +18,7 @@ func Write(content, filename string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create output file %s: %w", filename, err)
 	}
-	defer file.Close()
+	defer func() { err = errors.Join(err, file.Close()) }()
 
 	if _, err = file.WriteString(content); err != nil {
 		return fmt.Errorf("failed to write to output file %s: %w", filename, err)
