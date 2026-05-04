@@ -7,7 +7,7 @@ require (
 	github.com/hashicorp/hcl/v2 v2.24.0
 	github.com/hashicorp/terraform-json v0.27.2
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3
+	github.com/sergi/go-diff v1.4.0
 	github.com/zclconf/go-cty v1.18.1
 	gitlab.com/gitlab-org/api/client-go v1.46.0
 )
